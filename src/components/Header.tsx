@@ -1,5 +1,6 @@
 import React from 'react';
 import { Shield, AlertTriangle, FileText, Settings, Play, Pause, User } from 'lucide-react';
+import { User as UserType } from '../types';
 
 interface HeaderProps {
   activeView: string;
@@ -7,6 +8,7 @@ interface HeaderProps {
   simulatorMode: boolean;
   setSimulatorMode: (mode: boolean) => void;
   systemConfig: any;
+  user: UserType;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -14,7 +16,8 @@ export const Header: React.FC<HeaderProps> = ({
   setActiveView, 
   simulatorMode, 
   setSimulatorMode,
-  systemConfig 
+  systemConfig,
+  user
 }) => {
   const navItems = [
     { id: 'dashboard', label: 'Digital Twin', icon: Shield },
@@ -31,7 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
           <div>
             <h1 className="text-xl font-bold text-white">SafeTwin</h1>
             <p className="text-xs text-gray-400">
-              {systemConfig.airportName || 'AI Airport Safety System'}
+              {user.airportId || 'AI Airport Safety System'}
             </p>
           </div>
         </div>
@@ -58,7 +61,8 @@ export const Header: React.FC<HeaderProps> = ({
         {/* User Info */}
         <div className="flex items-center space-x-2 text-sm text-gray-300">
           <User className="h-4 w-4" />
-          <span>{systemConfig.userRole?.replace('_', ' ') || 'User'}</span>
+          <span>{user.firstName} {user.lastName}</span>
+          <span className="text-xs text-gray-500">({user.role.replace('_', ' ')})</span>
         </div>
 
         {/* Simulator Mode Toggle */}
