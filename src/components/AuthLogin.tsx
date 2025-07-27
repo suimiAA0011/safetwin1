@@ -31,6 +31,7 @@ export const AuthLogin: React.FC<AuthLoginProps> = ({ onSuccess, onSwitchToRegis
         onSuccess(user);
       }
     } catch (err) {
+      console.error('Login error:', err);
       setError('An unexpected error occurred');
     } finally {
       setIsLoading(false);
@@ -136,6 +137,15 @@ export const AuthLogin: React.FC<AuthLoginProps> = ({ onSuccess, onSwitchToRegis
           <div className="text-xs text-gray-700 space-y-1">
             <div>Email: demo@safetwin.com</div>
             <div>Password: demo123</div>
+            <button
+              type="button"
+              onClick={() => {
+                setFormData({ email: 'demo@safetwin.com', password: 'demo123' });
+              }}
+              className="mt-2 text-xs text-blue-600 hover:text-blue-700 underline"
+            >
+              Use Demo Credentials
+            </button>
           </div>
         </div>
       </div>

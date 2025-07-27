@@ -212,6 +212,72 @@ export class DataService {
   }
 
   async acknowledgeAlert(alertId: string, userId: string): Promise<void> {
+    try {
+      await this.updateAlert(alertId, { status: 'acknowledged', assignedTo: userId });
+      
+      // Record the action
+      await supabase
+        .from('alert_actions')
+        .insert({
+          alert_id: alertId,
+          user_id: userId,
+          action: 'acknowledge'
+        });
+    } catch (error) {
+      console.error('Failed to acknowledge alert:', error);
+      throw new Error('Failed to acknowledge alert. Please check your connection and try again.');
+    }
+  }
+
+  async resolveAlert(alertId: string, userId: string, notes?: string): Promise<void> {
+    try {
+      await this.updateAlert(alertId, { status: 'resolved' });
+      
+      // Record the action
+      await supabase
+        .from('alert_actions')
+        .insert({
+          alert_id: alertId,
+          user_id: userId,
+          action: 'resolve',
+          notes
+        });
+    } catch (error) {
+      console.error('Failed to resolve alert:', error);
+      throw new Error('Failed to resolve alert. Please check your connection and try again.');
+    }
+  }
+
+  // Team Dispatch
+  async dispatchTeam(alertId: string, teamType: string, dispatchedBy: string): Promise<void> {
+    try {
+      await supabase
+        .from('team_dispatches')
+        .insert({
+          alert_id: alertId,
+          team_type: teamType,
+          dispatched_by: dispatchedBy,
+          status: 'dispatched',
+          estimated_arrival: new Date(Date.now() + 10 * 60 * 1000).toISOString() // 10 minutes
+        });
+
+      // Record the action
+      await supabase
+        .from('alert_actions')
+        .insert({
+          alert_id: alertId,
+          user_id: dispatchedBy,
+          action: 'dispatch_team',
+          notes: `Dispatched ${teamType} team`
+        });
+    } catch (error) {
+      console.error('Failed to dispatch team:', error);
+      throw new Error('Failed to dispatch team. Please check your connection and try again.');
+    }
+  }
+
+  // Legacy methods for backward compatibility
+  async acknowledgeAlertLegacy(alertId: string, userId: string): Promise<void> {
     await this.updateAlert(alertId, { status: 'acknowledged', assignedTo: userId });
     
     // Record the action
@@ -224,7 +290,7 @@ export class DataService {
       });
   }
 
-  async resolveAlert(alertId: string, userId: string, notes?: string): Promise<void> {
+  async resolveAlertLegacy(alertId: string, userId: string, notes?: string): Promise<void> {
     await this.updateAlert(alertId, { status: 'resolved' });
     
     // Record the action
@@ -308,8 +374,7 @@ export class DataService {
     if (error) throw error;
   }
 
-  // Team Dispatch
-  async dispatchTeam(alertId: string, teamType: string, dispatchedBy: string): Promise<void> {
+  async dispatchTeamLegacy(alertId: string, teamType: string, dispatchedBy: string): Promise<void> {
     await supabase
       .from('team_dispatches')
       .insert({

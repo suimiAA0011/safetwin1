@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { AuthLogin } from './AuthLogin';
 import { AuthRegister } from './AuthRegister';
+import { Onboarding } from './Onboarding';
 import { authService } from '../services/authService';
 import { User } from '../types';
 import { Shield, Loader } from 'lucide-react';
@@ -13,8 +14,19 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
+  const [showOnboarding, setShowOnboarding] = useState(false);
+  const [isFirstTime, setIsFirstTime] = useState(false);
 
   useEffect(() => {
+    // Check if this is the user's first time
+    const onboardingCompleted = localStorage.getItem('safetwin_onboarding_completed');
+    if (!onboardingCompleted) {
+      setIsFirstTime(true);
+      setShowOnboarding(true);
+      setIsLoading(false);
+      return;
+    }
+
     checkAuthStatus();
   }, []);
 
@@ -30,13 +42,49 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
   };
 
   const handleAuthSuccess = (authenticatedUser: User) => {
+    // Restore user settings
+    const savedSettings = localStorage.getItem(`safetwin_settings_${authenticatedUser.id}`);
+    if (savedSettings) {
+      try {
+        const settings = JSON.parse(savedSettings);
+        authenticatedUser.preferences = { ...authenticatedUser.preferences, ...settings };
+      } catch (error) {
+        console.error('Failed to restore user settings:', error);
+      }
+    }
     setUser(authenticatedUser);
   };
 
   const handleSignOut = async () => {
+    if (user) {
+      // Save user settings before signing out
+      localStorage.setItem(`safetwin_settings_${user.id}`, JSON.stringify(user.preferences));
+    }
     await authService.signOut();
     setUser(null);
   };
+
+  const handleOnboardingComplete = (config: any) => {
+    localStorage.setItem('safetwin_onboarding_completed', 'true');
+    setShowOnboarding(false);
+    setIsFirstTime(false);
+  };
+
+  const handleOnboardingSkip = () => {
+    localStorage.setItem('safetwin_onboarding_completed', 'true');
+    setShowOnboarding(false);
+    setIsFirstTime(false);
+  };
+
+  // Show onboarding for first-time users
+  if (showOnboarding && isFirstTime) {
+    return (
+      <Onboarding 
+        onComplete={handleOnboardingComplete}
+        onSkip={handleOnboardingSkip}
+      />
+    );
+  }
 
   if (isLoading) {
     return (
@@ -65,6 +113,12 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
                 </div>
               </div>
               <div className="flex space-x-4">
+                <button
+                  onClick={() => setShowOnboarding(true)}
+                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                >
+                  View Demo
+                </button>
                 <button
                   onClick={() => setAuthMode('login')}
                   className={`px-4 py-2 rounded-lg transition-colors ${

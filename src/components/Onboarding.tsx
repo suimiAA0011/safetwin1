@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import { Shield, ArrowRight, CheckCircle, Settings, Users, AlertTriangle, Bot, Plane, Building } from 'lucide-react';
+import { User } from '../types';
 
 interface OnboardingProps {
   onComplete: (config: any) => void;
+  onSkip: () => void;
 }
 
-export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
+export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [config, setConfig] = useState({
     airportName: '',
@@ -69,6 +71,8 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
     if (currentStep < steps.length - 1) {
       setCurrentStep(currentStep + 1);
     } else {
+      // Mark onboarding as completed
+      localStorage.setItem('safetwin_onboarding_completed', 'true');
       onComplete(config);
     }
   };
@@ -82,7 +86,32 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
   const CurrentStepComponent = steps[currentStep].component;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900 flex items-center justify-center p-6">
+    <div className="min-h-screen bg-gradient-to-br from-gray-900 via-blue-900 to-gray-900">
+      {/* White Header Bar */}
+      <div className="bg-white shadow-lg">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between h-16">
+            <div className="flex items-center space-x-3">
+              <Shield className="h-8 w-8 text-blue-600" />
+              <div>
+                <h1 className="text-xl font-bold text-gray-900">SafeTwin</h1>
+                <p className="text-xs text-gray-600">AI Airport Safety System</p>
+              </div>
+            </div>
+            <div className="flex space-x-4">
+              <button
+                onClick={onSkip}
+                className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+              >
+                Skip Setup
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Onboarding Content */}
+      <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] p-6">
       <div className="max-w-4xl w-full">
         {/* Progress Bar */}
         <div className="mb-8">
@@ -132,6 +161,7 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete }) => {
           </div>
         </div>
       </div>
+    </div>
     </div>
   );
 };

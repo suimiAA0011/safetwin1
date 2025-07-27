@@ -4,22 +4,19 @@ import { CollapsibleSidebar } from './components/CollapsibleSidebar';
 import { QuickActions } from './components/QuickActions';
 import { Header } from './components/Header';
 import { DigitalTwin } from './components/DigitalTwin';
-import { AIAgentPanel } from './components/AIAgentPanel';
-import { AlertSystem } from './components/AlertSystem';
 import { IncidentReports } from './components/IncidentReports';
 import { VoiceAlert } from './components/VoiceAlert';
 import { EmergencySimulator } from './components/EmergencySimulator';
 import { LiveDataFeed } from './components/LiveDataFeed';
-import { SecurityTeamPanel } from './components/SecurityTeamPanel';
-import { SafetyMetrics } from './components/SafetyMetrics';
 import { Settings } from './components/Settings';
-import { Bot, AlertTriangle, Shield, BarChart3 } from 'lucide-react';
+import { Bot, AlertTriangle } from 'lucide-react';
 import { useAIAgents } from './hooks/useAIAgents';
 import { useAlerts } from './hooks/useAlerts';
 import { useIncidents } from './hooks/useIncidents';
 import { dataService } from './services/dataService';
 import { iotService } from './services/iotService';
 import { realtimeService } from './services/realtimeService';
+import { authService } from './services/authService';
 import { User } from './types';
 
 function App() {
@@ -105,6 +102,18 @@ const SafeTwinDashboard: React.FC<{ user: User }> = ({ user }) => {
     if (action === 'resolve') {
       clearAlert(alertId);
     }
+    
+    // Save user activity
+    if (user) {
+      const activity = {
+        action,
+        alertId,
+        timestamp: new Date().toISOString()
+      };
+      const existingActivity = JSON.parse(localStorage.getItem(`safetwin_activity_${user.id}`) || '[]');
+      existingActivity.push(activity);
+      localStorage.setItem(`safetwin_activity_${user.id}`, JSON.stringify(existingActivity.slice(-100))); // Keep last 100 activities
+    }
   };
 
   if (!isInitialized) {
@@ -133,18 +142,15 @@ const SafeTwinDashboard: React.FC<{ user: User }> = ({ user }) => {
 
       {/* Main Content Container */}
       <div className="flex-1 flex overflow-hidden">
-        {/* Left Sidebar - AI Agents & Quick Actions */}
+        {/* Left Sidebar - Quick Actions Only */}
         {activeView === 'dashboard' && (
           <CollapsibleSidebar
-            title="AI Agents & Actions"
+            title="Quick Actions"
             icon={<Bot className="h-5 w-5 text-blue-400" />}
             position="left"
-            defaultCollapsed={false}
+            defaultCollapsed={true}
           >
-            <AIAgentPanel agents={agents} updateAgentStatus={updateAgentStatus} />
-            <div className="border-t border-gray-700">
-              <QuickActions alerts={alerts} onActionComplete={handleActionComplete} />
-            </div>
+            <QuickActions alerts={alerts} onActionComplete={handleActionComplete} />
           </CollapsibleSidebar>
         )}
 
@@ -190,42 +196,30 @@ const SafeTwinDashboard: React.FC<{ user: User }> = ({ user }) => {
                 updateConfig={(newConfig) => {
                   // Update user preferences through auth service
                   authService.updateUserPreferences(newConfig);
+                  // Update local user state
+                  setUser(prev => prev ? { ...prev, preferences: { ...prev.preferences, ...newConfig } } : null);
                 }}
               />
             </div>
           )}
         </div>
 
-        {/* Right Sidebar - Alerts & Security Team */}
+        {/* Right Sidebar - Collapsed by default */}
         {activeView === 'dashboard' && (
           <CollapsibleSidebar
-            title="Alerts & Security"
+            title="System Status"
             icon={<AlertTriangle className="h-5 w-5 text-orange-400" />}
             position="right"
-            defaultCollapsed={false}
+            defaultCollapsed={true}
           >
-            <AlertSystem alerts={alerts} clearAlert={clearAlert} />
-            <div className="border-t border-gray-700">
-              <SecurityTeamPanel alerts={alerts} incidents={incidents} />
+            <div className="p-4">
+              <div className="text-center text-gray-400">
+                <AlertTriangle className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                <p className="text-sm">System monitoring</p>
+                <p className="text-xs">All systems operational</p>
+              </div>
             </div>
           </CollapsibleSidebar>
-        )}
-        
-        {/* Bottom Sidebar - Safety Metrics (only show on dashboard) */}
-        {activeView === 'dashboard' && (
-          <div className="fixed bottom-0 left-0 right-0 z-10">
-            <CollapsibleSidebar
-              title="Safety Metrics"
-              icon={<BarChart3 className="h-5 w-5 text-green-400" />}
-              position="left"
-              defaultCollapsed={true}
-              width="w-full"
-            >
-              <div className="h-32">
-                <SafetyMetrics alerts={alerts} incidents={incidents} />
-              </div>
-            </CollapsibleSidebar>
-          </div>
         )}
       </div>
 

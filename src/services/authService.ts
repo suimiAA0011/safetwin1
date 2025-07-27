@@ -19,6 +19,9 @@ export class AuthService {
     airportId?: string;
   }): Promise<{ user: User | null; error: string | null }> {
     try {
+      // Check if backend is available
+      await this.checkBackendConnection();
+
       // Create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
@@ -104,12 +107,19 @@ export class AuthService {
 
       return { user, error: null };
     } catch (error) {
+      console.error('Sign up error:', error);
+      if (error.message?.includes('fetch')) {
+        return { user: null, error: 'Cannot connect to the server. Please check your internet connection and try again.' };
+      }
       return { user: null, error: (error as Error).message };
     }
   }
 
   async signIn(email: string, password: string): Promise<{ user: User | null; error: string | null }> {
     try {
+      // Check if backend is available
+      await this.checkBackendConnection();
+
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -157,6 +167,10 @@ export class AuthService {
 
       return { user, error: null };
     } catch (error) {
+      console.error('Sign in error:', error);
+      if (error.message?.includes('fetch')) {
+        return { user: null, error: 'Cannot connect to the server. Please check your internet connection and try again.' };
+      }
       return { user: null, error: (error as Error).message };
     }
   }
@@ -173,6 +187,18 @@ export class AuthService {
       return { error: null };
     } catch (error) {
       return { error: (error as Error).message };
+    }
+  }
+  private async checkBackendConnection(): Promise<void> {
+    try {
+      // Test connection to Supabase
+      const { data, error } = await supabase.from('airports').select('id').limit(1);
+      if (error && error.message.includes('fetch')) {
+        throw new Error('Backend connection failed');
+      }
+    } catch (error) {
+      console.error('Backend connection check failed:', error);
+      throw new Error('Cannot connect to the server. Please check your internet connection.');
     }
   }
 
@@ -238,9 +264,13 @@ export class AuthService {
 
       this.currentUser.preferences = updatedPreferences;
       this.storeUserSession(this.currentUser);
+      
+      // Also save to localStorage for immediate access
+      localStorage.setItem(`safetwin_settings_${this.currentUser.id}`, JSON.stringify(updatedPreferences));
 
       return { error: null };
     } catch (error) {
+      console.error('Update preferences error:', error);
       return { error: (error as Error).message };
     }
   }

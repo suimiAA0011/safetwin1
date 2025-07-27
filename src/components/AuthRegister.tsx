@@ -80,6 +80,7 @@ export const AuthRegister: React.FC<AuthRegisterProps> = ({ onSuccess, onSwitchT
         onSuccess(user);
       }
     } catch (err) {
+      console.error('Registration error:', err);
       setError('An unexpected error occurred');
     } finally {
       setIsLoading(false);

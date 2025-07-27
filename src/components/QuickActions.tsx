@@ -23,6 +23,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({ alerts, onActionComp
     const currentUser = await authService.getCurrentUser();
     if (!currentUser) {
       console.error('No authenticated user for action');
+      alert('Please log in to perform this action');
       return;
     }
 
@@ -47,6 +48,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({ alerts, onActionComp
           break;
         default:
           console.warn('Unknown action:', action);
+          return;
       }
 
       if (onActionComplete) {
@@ -66,6 +68,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({ alerts, onActionComp
 
     } catch (error) {
       console.error('Action failed:', error);
+      alert('Action failed. Please try again or check your connection.');
     } finally {
       setIsProcessing(null);
     }
@@ -208,6 +211,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({ alerts, onActionComp
                 handleQuickAction('acknowledge', alert.id);
               });
             }}
+            disabled={alerts.filter(a => !['critical', 'high'].includes(a.severity)).length === 0}
             className="flex items-center space-x-2 px-3 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm"
           >
             <CheckCircle className="h-4 w-4" />
@@ -221,6 +225,7 @@ export const QuickActions: React.FC<QuickActionsProps> = ({ alerts, onActionComp
                 handleQuickAction('dispatch_security', alert.id);
               });
             }}
+            disabled={criticalAlerts.length === 0}
             className="flex items-center space-x-2 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm"
           >
             <AlertTriangle className="h-4 w-4" />
