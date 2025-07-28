@@ -268,15 +268,15 @@ export const DigitalTwin: React.FC<DigitalTwinProps> = ({
       )}
 
       {/* Zone Info */}
-      <div className="absolute top-4 right-4 z-10 bg-gray-800/95 backdrop-blur-sm rounded-lg p-4 border border-gray-700 shadow-xl">
+      <div className="absolute top-4 right-4 z-10 bg-gray-800/95 backdrop-blur-sm rounded-lg p-4 border border-gray-700 shadow-xl max-w-xs">
         <div className="flex items-center space-x-2 mb-2">
           <Wifi className="h-4 w-4 text-blue-400" />
           <span className="text-sm font-medium">Selected Zone</span>
         </div>
-        <div className="text-lg font-bold text-white mb-1">
+        <div className="text-base font-bold text-white mb-1 truncate">
           {currentZones.find(z => z.id === selectedZone)?.name || 'Unknown Zone'}
         </div>
-        <div className="text-sm text-gray-400 space-y-1">
+        <div className="text-xs text-gray-400 space-y-1">
           <div>Active Alerts: {getZoneAlerts(selectedZone).length}</div>
           <div>Status: {getZoneAlerts(selectedZone).some(a => a.severity === 'critical') ? 'Critical' : 'Normal'}</div>
           {viewMode === 'airside' && (
@@ -285,6 +285,31 @@ export const DigitalTwin: React.FC<DigitalTwinProps> = ({
               <div>Vehicles: {groundVehicles.filter(gv => gv.status === 'active').length}</div>
             </>
           )}
+        </div>
+        
+        {/* Zone List - Scrollable */}
+        <div className="mt-4 border-t border-gray-600 pt-3">
+          <div className="text-xs font-medium text-gray-300 mb-2">Available Zones</div>
+          <div className="max-h-32 overflow-y-auto space-y-1">
+            {currentZones.map(zone => (
+              <button
+                key={zone.id}
+                onClick={() => handleZoneClick(zone.id)}
+                className={`w-full text-left px-2 py-1 rounded text-xs transition-colors ${
+                  selectedZone === zone.id
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+              >
+                <div className="truncate">{zone.name}</div>
+                {getZoneAlerts(zone.id).length > 0 && (
+                  <div className="text-xs text-orange-400">
+                    {getZoneAlerts(zone.id).length} alerts
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
         </div>
         
         {showZoneInfo && (

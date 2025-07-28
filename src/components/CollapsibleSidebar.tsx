@@ -25,11 +25,11 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
   };
 
   return (
-    <div className={`${isCollapsed ? 'w-12' : width} bg-gray-800 border-gray-700 flex flex-col transition-all duration-300 ${
+    <div className={`${isCollapsed ? 'w-12' : width} bg-gray-800 border-gray-700 flex flex-col transition-all duration-300 flex-shrink-0 ${
       position === 'left' ? 'border-r' : 'border-l'
     }`}>
       {/* Header */}
-      <div className="flex items-center justify-between p-3 border-b border-gray-700 bg-gray-750">
+      <div className="flex items-center justify-between p-3 border-b border-gray-700 bg-gray-800/90 backdrop-blur-sm">
         {!isCollapsed && (
           <div className="flex items-center space-x-2">
             {icon}
@@ -39,7 +39,7 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
         
         <button
           onClick={toggleCollapsed}
-          className="p-1 hover:bg-gray-600 rounded transition-colors"
+          className="p-1 hover:bg-gray-600 rounded transition-colors flex-shrink-0"
           title={isCollapsed ? `Expand ${title}` : `Collapse ${title}`}
         >
           {isCollapsed ? (
@@ -63,11 +63,11 @@ export const CollapsibleSidebar: React.FC<CollapsibleSidebarProps> = ({
 
       {/* Collapsed Icon */}
       {isCollapsed && (
-        <div className="flex flex-col items-center py-4 space-y-4">
+        <div className="flex flex-col items-center py-4 space-y-2">
           <div className="p-2 bg-gray-700 rounded-lg">
             {icon}
           </div>
-          <div className="writing-mode-vertical text-xs text-gray-400 transform rotate-90 whitespace-nowrap">
+          <div className="text-xs text-gray-400 transform rotate-90 whitespace-nowrap origin-center">
             {title}
           </div>
         </div>

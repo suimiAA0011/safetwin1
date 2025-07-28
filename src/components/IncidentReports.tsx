@@ -42,8 +42,10 @@ export const IncidentReports: React.FC<IncidentReportsProps> = ({ incidents, add
             <div 
               key={incident.id}
               onClick={() => setSelectedIncident(incident)}
-              className={`bg-gray-800 rounded-lg p-4 cursor-pointer transition-all duration-200 ${
-                selectedIncident?.id === incident.id ? 'ring-2 ring-blue-400' : 'hover:bg-gray-750'
+              className={`bg-gray-800 rounded-lg p-4 cursor-pointer transition-all duration-200 border-2 ${
+                selectedIncident?.id === incident.id 
+                  ? 'border-blue-400 bg-blue-500/10' 
+                  : 'border-transparent hover:border-gray-600 hover:bg-gray-750'
               }`}
             >
               <div className="flex items-start justify-between mb-2">
@@ -60,7 +62,7 @@ export const IncidentReports: React.FC<IncidentReportsProps> = ({ incidents, add
                 </span>
               </div>
               
-              <p className="text-sm text-gray-300 mb-3">{incident.description}</p>
+              <p className="text-sm text-gray-300 mb-3 line-clamp-2">{incident.description}</p>
               
               <div className="flex items-center space-x-4 text-xs text-gray-400">
                 <div className="flex items-center space-x-1">
@@ -70,6 +72,13 @@ export const IncidentReports: React.FC<IncidentReportsProps> = ({ incidents, add
                 <div className="flex items-center space-x-1">
                   <MapPin className="h-3 w-3" />
                   <span>{incident.zone}</span>
+                </div>
+                <div className={`px-2 py-1 rounded text-xs ${
+                  incident.status === 'resolved' ? 'bg-green-500/20 text-green-400' :
+                  incident.status === 'active' ? 'bg-red-500/20 text-red-400' :
+                  'bg-yellow-500/20 text-yellow-400'
+                }`}>
+                  {incident.status}
                 </div>
               </div>
             </div>

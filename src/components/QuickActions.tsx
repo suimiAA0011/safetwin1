@@ -23,7 +23,11 @@ export const QuickActions: React.FC<QuickActionsProps> = ({ alerts, onActionComp
     const currentUser = await authService.getCurrentUser();
     if (!currentUser) {
       console.error('No authenticated user for action');
-      alert('Please log in to perform this action');
+      setShowConfirmation({
+        action: 'error',
+        alertId,
+        message: 'Please log in to perform this action'
+      });
       return;
     }
 
@@ -33,18 +37,43 @@ export const QuickActions: React.FC<QuickActionsProps> = ({ alerts, onActionComp
       switch (action) {
         case 'acknowledge':
           await dataService.acknowledgeAlert(alertId, currentUser.id);
+          setShowConfirmation({
+            action,
+            alertId,
+            message: `Alert acknowledged by ${currentUser.firstName} ${currentUser.lastName}`
+          });
           break;
         case 'dispatch_security':
           await dataService.dispatchTeam(alertId, 'security', currentUser.id);
+          setShowConfirmation({
+            action,
+            alertId,
+            message: 'Security team dispatched - ETA 5 minutes'
+          });
           break;
         case 'dispatch_medical':
           await dataService.dispatchTeam(alertId, 'medical', currentUser.id);
+          setShowConfirmation({
+            action,
+            alertId,
+            message: 'Medical team dispatched - ETA 3 minutes'
+          });
           break;
         case 'dispatch_fire':
           await dataService.dispatchTeam(alertId, 'fire', currentUser.id);
+          setShowConfirmation({
+            action,
+            alertId,
+            message: 'Fire team dispatched - ETA 4 minutes'
+          });
           break;
         case 'resolve':
           await dataService.resolveAlert(alertId, currentUser.id);
+          setShowConfirmation({
+            action,
+            alertId,
+            message: 'Alert resolved and logged'
+          });
           break;
         default:
           console.warn('Unknown action:', action);
@@ -55,12 +84,6 @@ export const QuickActions: React.FC<QuickActionsProps> = ({ alerts, onActionComp
         onActionComplete(action, alertId);
       }
 
-      // Show success feedback
-      setShowConfirmation({
-        action,
-        alertId,
-        message: getActionSuccessMessage(action)
-      });
 
       setTimeout(() => {
         setShowConfirmation(null);
@@ -68,7 +91,14 @@ export const QuickActions: React.FC<QuickActionsProps> = ({ alerts, onActionComp
 
     } catch (error) {
       console.error('Action failed:', error);
-      alert('Action failed. Please try again or check your connection.');
+      setShowConfirmation({
+        action: 'error',
+        alertId,
+        message: 'Action failed. Please try again or check your connection.'
+      });
+      setTimeout(() => {
+        setShowConfirmation(null);
+      }, 3000);
     } finally {
       setIsProcessing(null);
     }
@@ -239,27 +269,55 @@ export const QuickActions: React.FC<QuickActionsProps> = ({ alerts, onActionComp
         <h3 className="text-sm font-semibold text-white mb-3">Emergency Contacts</h3>
         
         <div className="space-y-2">
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-gray-400">Control Room</span>
-            <div className="flex items-center space-x-2">
-              <Phone className="h-3 w-3 text-green-400" />
-              <span className="text-white">+1 (555) 0123</span>
+          {[
+            { name: 'Control Room', number: '+1 (555) 0123', color: 'text-green-400' },
+            { name: 'Security', number: '+1 (555) 0456', color: 'text-blue-400' },
+            { name: 'Fire Department', number: '+1 (555) 0789', color: 'text-red-400' },
+            { name: 'Medical', number: '+1 (555) 0321', color: 'text-purple-400' }
+          ].map(contact => (
+            <button
+              key={contact.name}
+              onClick={() => {
+                // Simulate calling
+                setShowConfirmation({
+                  action: 'call',
+                  alertId: 'emergency',
+                  message: `Calling ${contact.name} at ${contact.number}`
+                });
+                setTimeout(() => setShowConfirmation(null), 2000);
+              }}
+              className="w-full flex items-center justify-between text-xs p-2 rounded hover:bg-gray-700 transition-colors"
+            >
+              <span className="text-gray-400">{contact.name}</span>
+              <div className="flex items-center space-x-2">
+                <Phone className={`h-3 w-3 ${contact.color}`} />
+                <span className="text-white">{contact.number}</span>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Recent Actions Log */}
+      <div className="bg-gray-800 rounded-lg p-4">
+        <h3 className="text-sm font-semibold text-white mb-3">Recent Actions</h3>
+        <div className="space-y-2 max-h-32 overflow-y-auto">
+          <div className="text-xs text-gray-400 p-2 bg-gray-700/50 rounded">
+            <div className="flex justify-between">
+              <span>Alert acknowledged</span>
+              <span>{new Date().toLocaleTimeString()}</span>
             </div>
           </div>
-          
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-gray-400">Security</span>
-            <div className="flex items-center space-x-2">
-              <Phone className="h-3 w-3 text-blue-400" />
-              <span className="text-white">+1 (555) 0456</span>
+          <div className="text-xs text-gray-400 p-2 bg-gray-700/50 rounded">
+            <div className="flex justify-between">
+              <span>Security team dispatched</span>
+              <span>{new Date(Date.now() - 300000).toLocaleTimeString()}</span>
             </div>
           </div>
-          
-          <div className="flex items-center justify-between text-xs">
-            <span className="text-gray-400">Fire Department</span>
-            <div className="flex items-center space-x-2">
-              <Phone className="h-3 w-3 text-red-400" />
-              <span className="text-white">+1 (555) 0789</span>
+          <div className="text-xs text-gray-400 p-2 bg-gray-700/50 rounded">
+            <div className="flex justify-between">
+              <span>Alert resolved</span>
+              <span>{new Date(Date.now() - 600000).toLocaleTimeString()}</span>
             </div>
           </div>
         </div>
@@ -267,8 +325,16 @@ export const QuickActions: React.FC<QuickActionsProps> = ({ alerts, onActionComp
 
       {/* Success Confirmation */}
       {showConfirmation && (
-        <div className="fixed bottom-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2 z-50">
-          <CheckCircle className="h-4 w-4" />
+        <div className={`fixed bottom-4 right-4 px-4 py-2 rounded-lg shadow-lg flex items-center space-x-2 z-50 ${
+          showConfirmation.action === 'error' 
+            ? 'bg-red-600 text-white' 
+            : 'bg-green-600 text-white'
+        }`}>
+          {showConfirmation.action === 'error' ? (
+            <AlertTriangle className="h-4 w-4" />
+          ) : (
+            <CheckCircle className="h-4 w-4" />
+          )}
           <span className="text-sm">{showConfirmation.message}</span>
         </div>
       )}

@@ -13,6 +13,7 @@ export const EmergencySimulator: React.FC<EmergencySimulatorProps> = ({
   selectedZone 
 }) => {
   const [isRunning, setIsRunning] = useState(false);
+  const [currentRunningScenario, setCurrentRunningScenario] = useState<string | null>(null);
   const [scenarioCategory, setScenarioCategory] = useState<'terminal' | 'airside'>('terminal');
 
   const terminalScenarios = [
@@ -120,7 +121,12 @@ export const EmergencySimulator: React.FC<EmergencySimulatorProps> = ({
   const currentScenarios = scenarioCategory === 'terminal' ? terminalScenarios : airsideScenarios;
 
   const runSimulation = (scenario: any) => {
+    if (isRunning && currentRunningScenario === scenario.id) {
+      return; // Prevent double-clicking the same scenario
+    }
+    
     setIsRunning(true);
+    setCurrentRunningScenario(scenario.id);
     
     // Create initial alert
     const alertId = Date.now().toString();
@@ -236,6 +242,7 @@ export const EmergencySimulator: React.FC<EmergencySimulatorProps> = ({
     // Simulate progression
     setTimeout(() => {
       setIsRunning(false);
+      setCurrentRunningScenario(null);
     }, scenario.duration);
   };
 
@@ -315,13 +322,15 @@ export const EmergencySimulator: React.FC<EmergencySimulatorProps> = ({
                     onClick={() => runSimulation(scenario)}
                     disabled={isRunning}
                     className={`flex items-center space-x-2 px-4 py-2 rounded-lg transition-colors ${
-                      isRunning
+                      isRunning && scenario.id === currentRunningScenario
                         ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
                         : 'bg-blue-600 hover:bg-blue-700 text-white'
                     }`}
                   >
                     <Play className="h-4 w-4" />
-                    <span>{isRunning ? 'Running...' : 'Run Simulation'}</span>
+                    <span>
+                      {isRunning && scenario.id === currentRunningScenario ? 'Running...' : 'Run Simulation'}
+                    </span>
                   </button>
                 </div>
               </div>

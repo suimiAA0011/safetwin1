@@ -221,12 +221,14 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
       {children(user)}
       
       {/* Sign Out Button */}
-      <button
-        onClick={handleSignOut}
-        className="fixed top-4 right-4 z-50 bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors text-sm"
-      >
-        Sign Out
-      </button>
+      <div className="fixed top-4 right-4 z-50">
+        <button
+          onClick={handleSignOut}
+          className="bg-red-600/90 hover:bg-red-700/90 backdrop-blur-sm text-white px-4 py-2 rounded-lg transition-colors text-sm shadow-lg border border-red-500/30"
+        >
+          Sign Out
+        </button>
+      </div>
     </div>
   );
 };
