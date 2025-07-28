@@ -9,6 +9,7 @@ import { VoiceAlert } from './components/VoiceAlert';
 import { EmergencySimulator } from './components/EmergencySimulator';
 import { LiveDataFeed } from './components/LiveDataFeed';
 import { Settings } from './components/Settings';
+import { SimulationPanel } from './components/SimulationPanel';
 import { Bot, AlertTriangle } from 'lucide-react';
 import { useAIAgents } from './hooks/useAIAgents';
 import { useAlerts } from './hooks/useAlerts';
@@ -17,6 +18,7 @@ import { dataService } from './services/dataService';
 import { iotService } from './services/iotService';
 import { realtimeService } from './services/realtimeService';
 import { authService } from './services/authService';
+import { simulationService } from './services/simulationService';
 import { User } from './types';
 
 function App() {
@@ -30,6 +32,7 @@ function App() {
 const SafeTwinDashboard: React.FC<{ user: User }> = ({ user }) => {
   const [activeView, setActiveView] = useState('dashboard');
   const [simulatorMode, setSimulatorMode] = useState(false);
+  const [showSimulationPanel, setShowSimulationPanel] = useState(false);
   const [selectedZone, setSelectedZone] = useState('terminal-a');
   const [isInitialized, setIsInitialized] = useState(false);
   
@@ -41,6 +44,11 @@ const SafeTwinDashboard: React.FC<{ user: User }> = ({ user }) => {
   useEffect(() => {
     const initializeServices = async () => {
       try {
+        // Set simulation mode based on user preference or default
+        const isSimMode = user.preferences.systemSettings?.simulationMode || false;
+        simulationService.setSimulationMode(isSimMode);
+        setSimulatorMode(isSimMode);
+        
         // Set current airport for data service
         dataService.setCurrentAirport(user.airportId);
         
@@ -60,6 +68,15 @@ const SafeTwinDashboard: React.FC<{ user: User }> = ({ user }) => {
           console.log('Sensor data received:', sensorId, data);
         });
         
+        // Subscribe to simulation events
+        simulationService.on('simulation_alert', (alert) => {
+          addAlert(alert);
+        });
+        
+        simulationService.on('simulation_incident', (incident) => {
+          addIncident(incident);
+        });
+        
         setIsInitialized(true);
         console.log('SafeTwin services initialized successfully');
       } catch (error) {
@@ -73,6 +90,7 @@ const SafeTwinDashboard: React.FC<{ user: User }> = ({ user }) => {
     return () => {
       iotService.disconnect();
       realtimeService.disconnect();
+      simulationService.stopAllScenarios();
     };
   }, [user.airportId, addAlert]);
 
@@ -116,6 +134,29 @@ const SafeTwinDashboard: React.FC<{ user: User }> = ({ user }) => {
     }
   };
 
+  const handleToggleSimulation = () => {
+    setShowSimulationPanel(!showSimulationPanel);
+  };
+
+  const handleSimulatorModeChange = (mode: boolean) => {
+    setSimulatorMode(mode);
+    simulationService.setSimulationMode(mode);
+    
+    // Update user preferences
+    const updatedPreferences = {
+      ...user.preferences,
+      systemSettings: {
+        ...user.preferences.systemSettings,
+        simulationMode: mode
+      }
+    };
+    authService.updateUserPreferences(updatedPreferences);
+  };
+
+  const handleScenarioRun = (scenarioId: string) => {
+    console.log('Running scenario:', scenarioId);
+  };
+
   if (!isInitialized) {
     return (
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
@@ -135,9 +176,10 @@ const SafeTwinDashboard: React.FC<{ user: User }> = ({ user }) => {
         activeView={activeView}
         setActiveView={setActiveView}
         simulatorMode={simulatorMode}
-        setSimulatorMode={setSimulatorMode}
+        setSimulatorMode={handleSimulatorModeChange}
         systemConfig={user.preferences}
         user={user}
+        onToggleSimulation={handleToggleSimulation}
       />
 
       {/* Main Content Container */}
@@ -226,6 +268,23 @@ const SafeTwinDashboard: React.FC<{ user: User }> = ({ user }) => {
       {/* Voice Alert System */}
       {user.preferences.alertSettings?.voiceAlerts && (
         <VoiceAlert alerts={alerts} />
+      )}
+
+      {/* Simulation Panel */}
+      <SimulationPanel
+        isVisible={showSimulationPanel}
+        onClose={() => setShowSimulationPanel(false)}
+        onScenarioRun={handleScenarioRun}
+      />
+
+      {/* Simulation Mode Banner */}
+      {simulatorMode && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-40 bg-orange-600/90 backdrop-blur-sm border border-orange-500 rounded-lg px-4 py-2 shadow-xl">
+          <div className="flex items-center space-x-2">
+            <div className="h-2 w-2 bg-orange-300 rounded-full animate-pulse"></div>
+            <span className="text-sm font-medium text-white">Simulation Mode Active</span>
+          </div>
+        </div>
       )}
     </div>
   );

@@ -1,4 +1,5 @@
 import { Alert } from '../hooks/useAlerts';
+import { simulationService } from './simulationService';
 
 // YOLOv8 Integration Service
 export class YOLOv8Service {
@@ -7,6 +8,19 @@ export class YOLOv8Service {
 
   async initialize() {
     try {
+      if (simulationService.isInSimulationMode()) {
+        console.log('Vision services running in simulation mode');
+        this.model = {
+          detect: this.simulateDetection.bind(this),
+          classes: [
+            'person', 'vehicle', 'aircraft', 'baggage', 'fuel_truck', 
+            'catering_truck', 'pushback_tug', 'ground_equipment'
+          ]
+        };
+        this.isInitialized = true;
+        return;
+      }
+      
       // In a real implementation, this would load the YOLOv8 model
       // Using ONNX.js or TensorFlow.js for browser deployment
       console.log('Initializing YOLOv8 model...');
@@ -105,6 +119,19 @@ export class OpenCVService {
 
   async initialize() {
     try {
+      if (simulationService.isInSimulationMode()) {
+        console.log('OpenCV running in simulation mode');
+        this.cv = {
+          imread: this.simulateImageRead.bind(this),
+          cvtColor: this.simulateColorConversion.bind(this),
+          threshold: this.simulateThreshold.bind(this),
+          findContours: this.simulateFindContours.bind(this),
+          boundingRect: this.simulateBoundingRect.bind(this)
+        };
+        this.isLoaded = true;
+        return;
+      }
+      
       // In a real implementation, this would load OpenCV.js
       console.log('Loading OpenCV.js...');
       
@@ -212,6 +239,18 @@ export class AWSRekognitionService {
 
   async initialize(config: { accessKeyId: string; secretAccessKey: string; region: string }) {
     try {
+      if (simulationService.isInSimulationMode()) {
+        console.log('AWS Rekognition running in simulation mode');
+        this.client = {
+          detectFaces: this.simulateDetectFaces.bind(this),
+          detectLabels: this.simulateDetectLabels.bind(this),
+          detectText: this.simulateDetectText.bind(this),
+          detectModerationLabels: this.simulateDetectModerationLabels.bind(this)
+        };
+        this.isConfigured = true;
+        return;
+      }
+      
       console.log('Initializing AWS Rekognition...');
       
       // In a real implementation, this would initialize AWS SDK
@@ -366,6 +405,10 @@ export class VisionProcessingService {
   }
 
   async initialize(awsConfig?: any) {
+    if (simulationService.isInSimulationMode()) {
+      console.log('Vision processing service running in simulation mode');
+    }
+    
     await Promise.all([
       this.yolo.initialize(),
       this.opencv.initialize(),
@@ -374,6 +417,11 @@ export class VisionProcessingService {
   }
 
   async processVideoFrame(canvas: HTMLCanvasElement, zone: string) {
+    if (simulationService.isInSimulationMode()) {
+      // Return simulated results in simulation mode
+      return this.generateSimulatedResults(zone);
+    }
+    
     const ctx = canvas.getContext('2d');
     if (!ctx) return null;
 
@@ -399,6 +447,66 @@ export class VisionProcessingService {
       behaviorAnalysis: rekognitionResults,
       alerts: allAlerts,
       processedAt: new Date()
+    };
+  }
+
+  private generateSimulatedResults(zone: string) {
+    // Generate realistic simulated detection results
+    const detections = [];
+    const alerts = [];
+    
+    // Randomly generate some detections
+    if (Math.random() > 0.7) {
+      const classes = ['person', 'vehicle', 'baggage', 'aircraft'];
+      const detectedClass = classes[Math.floor(Math.random() * classes.length)];
+      
+      detections.push({
+        class: detectedClass,
+        confidence: 0.7 + Math.random() * 0.3,
+        bbox: {
+          x: Math.random() * 640,
+          y: Math.random() * 480,
+          width: 50 + Math.random() * 100,
+          height: 50 + Math.random() * 100
+        },
+        timestamp: new Date()
+      });
+      
+      // Generate alerts based on context
+      if (detectedClass === 'person' && zone.includes('runway')) {
+        alerts.push({
+          type: 'runway_incursion',
+          severity: 'critical',
+          message: `SIMULATION: Unauthorized person detected on ${zone}`,
+          zone,
+          timestamp: new Date()
+        });
+      } else if (detectedClass === 'baggage' && Math.random() > 0.8) {
+        alerts.push({
+          type: 'unattended_baggage',
+          severity: 'high',
+          message: `SIMULATION: Unattended baggage detected in ${zone}`,
+          zone,
+          timestamp: new Date()
+        });
+      }
+    }
+    
+    return {
+      detections,
+      motionAnalysis: {
+        motionAreas: [],
+        crowdDensity: {
+          density: Math.random(),
+          count: Math.floor(Math.random() * 20),
+          areas: []
+        },
+        processedAt: new Date()
+      },
+      behaviorAnalysis: [],
+      alerts,
+      processedAt: new Date(),
+      simulation: true
     };
   }
 }

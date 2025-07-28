@@ -1,5 +1,6 @@
 import { dataService } from './dataService';
 import { visionService } from './visionService';
+import { simulationService } from './simulationService';
 
 export interface SensorReading {
   sensorId: string;
@@ -36,13 +37,18 @@ export class IoTService {
     try {
       console.log('Initializing IoT Service for airport:', airportId);
       
-      // In a real implementation, this would connect to actual IoT infrastructure
-      // For now, we'll simulate real-time data streams
-      await this.connectToSensorNetwork(airportId);
-      await this.connectToCameraNetwork(airportId);
+      if (simulationService.isInSimulationMode()) {
+        console.log('IoT Service running in simulation mode');
+        await this.initializeSimulationMode(airportId);
+      } else {
+        console.log('IoT Service connecting to real devices');
+        // In a real implementation, this would connect to actual IoT infrastructure
+        await this.connectToSensorNetwork(airportId);
+        await this.connectToCameraNetwork(airportId);
+      }
       
       this.isConnected = true;
-      this.startDataSimulation(airportId);
+      this.startDataStreaming(airportId);
       
       console.log('IoT Service initialized successfully');
     } catch (error) {
@@ -51,7 +57,37 @@ export class IoTService {
     }
   }
 
+  private async initializeSimulationMode(airportId: string): Promise<void> {
+    console.log('Initializing simulation mode for IoT devices');
+    
+    // Get sensor and camera configurations but don't attempt real connections
+    const sensors = await dataService.getSensors();
+    const cameras = await dataService.getCameras();
+    
+    // Create mock connections for UI purposes
+    sensors.forEach(sensor => {
+      this.sensorConnections.set(sensor.id, { readyState: WebSocket.OPEN } as any);
+    });
+    
+    cameras.forEach(camera => {
+      this.cameraConnections.set(camera.id, { readyState: WebSocket.OPEN } as any);
+    });
+    
+    // Subscribe to simulation events
+    simulationService.on('simulation_sensor_data', (data) => {
+      this.handleSimulatedSensorReading(data);
+    });
+    
+    simulationService.on('simulation_camera_event', (data) => {
+      this.handleSimulatedCameraEvent(data);
+    });
+  }
+
   private async connectToSensorNetwork(airportId: string): Promise<void> {
+    if (simulationService.isInSimulationMode()) {
+      return; // Skip real connections in simulation mode
+    }
+    
     // Get all sensors for the airport
     const sensors = await dataService.getSensors();
     
@@ -61,6 +97,10 @@ export class IoTService {
   }
 
   private async connectToCameraNetwork(airportId: string): Promise<void> {
+    if (simulationService.isInSimulationMode()) {
+      return; // Skip real connections in simulation mode
+    }
+    
     // Get all cameras for the airport
     const cameras = await dataService.getCameras();
     
@@ -70,6 +110,12 @@ export class IoTService {
   }
 
   private connectSensor(sensorId: string, sensorType: string): void {
+    if (simulationService.isInSimulationMode()) {
+      // Create mock connection
+      this.sensorConnections.set(sensorId, { readyState: WebSocket.OPEN } as any);
+      return;
+    }
+    
     try {
       // In a real implementation, this would connect to actual sensor WebSocket endpoints
       // For simulation, we'll create mock WebSocket connections
@@ -83,6 +129,12 @@ export class IoTService {
   }
 
   private connectCamera(cameraId: string, cameraType: string): void {
+    if (simulationService.isInSimulationMode()) {
+      // Create mock connection
+      this.cameraConnections.set(cameraId, { readyState: WebSocket.OPEN } as any);
+      return;
+    }
+    
     try {
       // In a real implementation, this would connect to actual camera stream endpoints
       const mockWs = this.createMockCameraWebSocket(cameraId, cameraType);
@@ -95,6 +147,10 @@ export class IoTService {
   }
 
   private createMockSensorWebSocket(sensorId: string, sensorType: string): WebSocket {
+    if (simulationService.isInSimulationMode()) {
+      return { readyState: WebSocket.OPEN } as any;
+    }
+    
     // Create a mock WebSocket that simulates real sensor data
     const mockWs = {
       readyState: WebSocket.OPEN,
@@ -115,6 +171,10 @@ export class IoTService {
   }
 
   private createMockCameraWebSocket(cameraId: string, cameraType: string): WebSocket {
+    if (simulationService.isInSimulationMode()) {
+      return { readyState: WebSocket.OPEN } as any;
+    }
+    
     // Create a mock WebSocket that simulates real camera frames
     const mockWs = {
       readyState: WebSocket.OPEN,
@@ -135,6 +195,17 @@ export class IoTService {
   }
 
   private generateSensorReading(sensorId: string, sensorType: string): SensorReading {
+    if (simulationService.isInSimulationMode()) {
+      const mockData = simulationService.generateMockSensorData(sensorType);
+      return {
+        sensorId,
+        value: mockData.value,
+        unit: mockData.unit,
+        timestamp: new Date(),
+        quality: 0.95
+      };
+    }
+    
     let value: number;
     let unit: string;
 
@@ -190,6 +261,25 @@ export class IoTService {
   }
 
   private generateCameraFrame(cameraId: string, cameraType: string): CameraFrame {
+    if (simulationService.isInSimulationMode()) {
+      const mockFrame = simulationService.generateMockCameraFrame(cameraType);
+      const data = new Uint8ClampedArray(mockFrame.width * mockFrame.height * 4);
+      // Fill with simulated data
+      for (let i = 0; i < data.length; i += 4) {
+        data[i] = Math.random() * 255;
+        data[i + 1] = Math.random() * 255;
+        data[i + 2] = Math.random() * 255;
+        data[i + 3] = 255;
+      }
+      
+      return {
+        cameraId,
+        frameData: new ImageData(data, mockFrame.width, mockFrame.height),
+        timestamp: mockFrame.timestamp,
+        metadata: { ...mockFrame, simulation: true }
+      };
+    }
+    
     // Create a mock ImageData object
     const width = 640;
     const height = 480;
@@ -217,7 +307,57 @@ export class IoTService {
     };
   }
 
+  private handleSimulatedSensorReading(data: any): void {
+    const reading: SensorReading = {
+      sensorId: data.sensorId || 'sim-sensor',
+      value: data.value,
+      unit: data.unit || 'units',
+      timestamp: data.timestamp,
+      quality: data.quality || 1.0
+    };
+    
+    this.handleSensorReading(reading);
+  }
+
+  private handleSimulatedCameraEvent(data: any): void {
+    // Create a simulated camera frame with detection data
+    const canvas = document.createElement('canvas');
+    canvas.width = 640;
+    canvas.height = 480;
+    const ctx = canvas.getContext('2d');
+    
+    if (ctx) {
+      // Fill with simulated background
+      ctx.fillStyle = '#2a2a2a';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      
+      // Add detection visualization if present
+      if (data.detection) {
+        ctx.fillStyle = '#ff4444';
+        ctx.fillRect(
+          Math.random() * (canvas.width - 100),
+          Math.random() * (canvas.height - 100),
+          100,
+          100
+        );
+      }
+      
+      const frame: CameraFrame = {
+        cameraId: data.cameraId,
+        frameData: ctx.getImageData(0, 0, canvas.width, canvas.height),
+        timestamp: data.timestamp,
+        metadata: { ...data, simulation: true }
+      };
+      
+      this.handleCameraFrame(frame);
+    }
+  }
+
   private getSensorInterval(sensorType: string): number {
+    if (simulationService.isInSimulationMode()) {
+      return 2000; // Slower updates in simulation mode
+    }
+    
     // Different sensors have different update frequencies
     switch (sensorType) {
       case 'motion':
@@ -370,7 +510,18 @@ export class IoTService {
     }));
   }
 
-  private startDataSimulation(airportId: string): void {
+  private startDataStreaming(airportId: string): void {
+    if (simulationService.isInSimulationMode()) {
+      console.log('Data streaming in simulation mode - using event-driven updates');
+      // In simulation mode, data is driven by simulation events
+      // Still run system health updates
+      setInterval(async () => {
+        const mockHealth = simulationService.generateMockSystemHealth();
+        await dataService.updateSystemHealth(mockHealth);
+      }, 30000);
+      return;
+    }
+    
     // Start periodic system health checks
     setInterval(async () => {
       await this.updateSystemHealth();
@@ -383,6 +534,12 @@ export class IoTService {
   }
 
   private async updateSystemHealth(): Promise<void> {
+    if (simulationService.isInSimulationMode()) {
+      const mockHealth = simulationService.generateMockSystemHealth();
+      await dataService.updateSystemHealth(mockHealth);
+      return;
+    }
+    
     try {
       const sensorHealth = this.getSensorNetworkHealth();
       const cameraHealth = this.getCameraNetworkHealth();
@@ -436,6 +593,11 @@ export class IoTService {
   }
 
   private checkConnectionHealth(): void {
+    if (simulationService.isInSimulationMode()) {
+      // In simulation mode, connections are always "healthy"
+      return;
+    }
+    
     // Check and reconnect failed sensor connections
     this.sensorConnections.forEach((ws, sensorId) => {
       if (ws.readyState === WebSocket.CLOSED) {
@@ -540,6 +702,7 @@ export class IoTService {
     sensors: number;
     cameras: number;
     health: string;
+    simulationMode: boolean;
   } {
     return {
       isConnected: this.isConnected,
@@ -548,7 +711,8 @@ export class IoTService {
       health: this.getOverallHealth(
         this.getSensorNetworkHealth(),
         this.getCameraNetworkHealth()
-      )
+      ),
+      simulationMode: simulationService.isInSimulationMode()
     };
   }
 }
