@@ -66,6 +66,10 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
 
   const handleOnboardingComplete = (config: any) => {
     localStorage.setItem('safetwin_onboarding_completed', 'true');
+    // Store guest preferences if provided
+    if (config) {
+      sessionStorage.setItem('safetwin_guest_preferences', JSON.stringify(config));
+    }
     setShowOnboarding(false);
     setIsFirstTime(false);
   };
@@ -77,8 +81,52 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
   };
 
   const handleGuestMode = () => {
-    setShowOnboarding(true);
-    setIsFirstTime(false); // Don't mark as first time for guest mode
+    // Create a guest user for demo purposes
+    const guestUser: User = {
+      id: 'guest-user',
+      email: 'guest@safetwin.com',
+      firstName: 'Guest',
+      lastName: 'User',
+      role: 'security_chief',
+      airportId: 'default-airport-id',
+      preferences: {
+        theme: 'dark',
+        alertSettings: {
+          voiceAlerts: true,
+          emailNotifications: false,
+          pushNotifications: true,
+          smsAlerts: false,
+          alertThreshold: 'medium'
+        },
+        dashboardLayout: {
+          sidebarCollapsed: false,
+          activeView: 'dashboard',
+          selectedZone: 'terminal-a'
+        },
+        aiAgents: {
+          anomalyDetection: true,
+          crowdMonitoring: true,
+          securityBreach: true,
+          emergencyResponse: true,
+          runwayMonitoring: true,
+          aircraftTracking: true,
+          vehicleMonitoring: true,
+          fuelSafety: true,
+          perimeterSecurity: true,
+          weatherMonitoring: true
+        },
+        systemSettings: {
+          autoRefresh: true,
+          refreshInterval: 5000,
+          darkMode: true,
+          simulationMode: true
+        }
+      },
+      createdAt: new Date(),
+      lastLogin: new Date()
+    };
+    
+    setUser(guestUser);
   };
   // Show onboarding for first-time users
   if (showOnboarding && isFirstTime) {
@@ -91,20 +139,6 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
     );
   }
 
-  // Show onboarding for guest mode
-  if (showOnboarding && !isFirstTime) {
-    return (
-      <Onboarding 
-        onComplete={(config) => {
-          // Apply guest preferences temporarily
-          sessionStorage.setItem('safetwin_guest_preferences', JSON.stringify(config));
-          setShowOnboarding(false);
-        }}
-        onSkip={() => setShowOnboarding(false)}
-        isGuestMode={true}
-      />
-    );
-  }
 
   if (isLoading) {
     return (
@@ -135,9 +169,9 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
               <div className="flex space-x-4">
                 <button
                   onClick={handleGuestMode}
-                  className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
+                  className="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors"
                 >
-                  Guest Mode
+                  Try Demo
                 </button>
                 <button
                   onClick={() => setAuthMode('login')}

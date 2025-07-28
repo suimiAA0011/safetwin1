@@ -35,6 +35,7 @@ const SafeTwinDashboard: React.FC<{ user: User }> = ({ user }) => {
   const [showSimulationPanel, setShowSimulationPanel] = useState(false);
   const [selectedZone, setSelectedZone] = useState('terminal-a');
   const [isInitialized, setIsInitialized] = useState(false);
+  const [connectionStatus, setConnectionStatus] = useState<'connecting' | 'connected' | 'offline'>('connecting');
   
   const { agents, updateAgentStatus } = useAIAgents();
   const { alerts, addAlert, clearAlert } = useAlerts();
@@ -44,31 +45,45 @@ const SafeTwinDashboard: React.FC<{ user: User }> = ({ user }) => {
   useEffect(() => {
     const initializeServices = async () => {
       try {
+        setConnectionStatus('connecting');
+        
         // Set simulation mode based on user preference or default
-        const isSimMode = user.preferences.systemSettings?.simulationMode || false;
+        const isSimMode = user.preferences.systemSettings?.simulationMode !== false; // Default to true
         simulationService.setSimulationMode(isSimMode);
         setSimulatorMode(isSimMode);
         
         // Set current airport for data service
         dataService.setCurrentAirport(user.airportId);
         
-        // Initialize IoT service for real-time data
-        await iotService.initialize(user.airportId);
-        
-        // Initialize real-time service for live updates
-        await realtimeService.initialize(user.airportId);
+        // Try to initialize services, but don't fail if they're unavailable
+        try {
+          // Initialize IoT service for real-time data
+          await iotService.initialize(user.airportId);
+          
+          // Initialize real-time service for live updates
+          await realtimeService.initialize(user.airportId);
+          
+          setConnectionStatus('connected');
+        } catch (error) {
+          console.warn('Some services unavailable, running in offline mode:', error);
+          setConnectionStatus('offline');
+        }
         
         // Subscribe to real-time alerts
-        realtimeService.onAlert((alert) => {
-          addAlert(alert);
-        });
+        try {
+          realtimeService.onAlert((alert) => {
+            addAlert(alert);
+          });
+          
+          // Subscribe to real-time sensor data
+          realtimeService.onSensorData((sensorId, data) => {
+            console.log('Sensor data received:', sensorId, data);
+          });
+        } catch (error) {
+          console.warn('Real-time subscriptions unavailable:', error);
+        }
         
-        // Subscribe to real-time sensor data
-        realtimeService.onSensorData((sensorId, data) => {
-          console.log('Sensor data received:', sensorId, data);
-        });
-        
-        // Subscribe to simulation events
+        // Always subscribe to simulation events
         simulationService.on('simulation_alert', (alert) => {
           addAlert(alert);
         });
@@ -81,6 +96,8 @@ const SafeTwinDashboard: React.FC<{ user: User }> = ({ user }) => {
         console.log('SafeTwin services initialized successfully');
       } catch (error) {
         console.error('Failed to initialize SafeTwin services:', error);
+        setConnectionStatus('offline');
+        setIsInitialized(true); // Still allow the app to work in offline mode
       }
     };
 
@@ -96,7 +113,7 @@ const SafeTwinDashboard: React.FC<{ user: User }> = ({ user }) => {
 
   // Load real-time data from database
   useEffect(() => {
-    if (!isInitialized || !user.preferences.systemSettings?.autoRefresh) return;
+    if (!isInitialized || !user.preferences.systemSettings?.autoRefresh || connectionStatus === 'offline') return;
 
     const loadData = async () => {
       try {
@@ -109,6 +126,7 @@ const SafeTwinDashboard: React.FC<{ user: User }> = ({ user }) => {
         activeIncidents.forEach(incident => addIncident(incident));
       } catch (error) {
         console.error('Failed to load data:', error);
+        // Don't show error to user, just log it
       }
     };
 
@@ -162,8 +180,15 @@ const SafeTwinDashboard: React.FC<{ user: User }> = ({ user }) => {
       <div className="min-h-screen bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-400 mx-auto mb-4"></div>
-          <p className="text-white text-lg">Initializing SafeTwin System...</p>
-          <p className="text-gray-400 text-sm mt-2">Connecting to sensors and cameras...</p>
+          <p className="text-white text-lg">
+            {connectionStatus === 'connecting' ? 'Initializing SafeTwin System...' : 'Starting SafeTwin...'}
+          </p>
+          <p className="text-gray-400 text-sm mt-2">
+            {connectionStatus === 'connecting' 
+              ? 'Connecting to sensors and cameras...' 
+              : 'Preparing simulation environment...'
+            }
+          </p>
         </div>
       </div>
     );
@@ -282,7 +307,20 @@ const SafeTwinDashboard: React.FC<{ user: User }> = ({ user }) => {
         <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-40 bg-orange-600/90 backdrop-blur-sm border border-orange-500 rounded-lg px-4 py-2 shadow-xl">
           <div className="flex items-center space-x-2">
             <div className="h-2 w-2 bg-orange-300 rounded-full animate-pulse"></div>
-            <span className="text-sm font-medium text-white">Simulation Mode Active</span>
+            <span className="text-sm font-medium text-white">
+              Simulation Mode Active
+              {connectionStatus === 'offline' && ' - Offline Mode'}
+            </span>
+          </div>
+        </div>
+      )}
+      
+      {/* Connection Status Banner */}
+      {connectionStatus === 'offline' && !simulatorMode && (
+        <div className="fixed top-20 left-1/2 transform -translate-x-1/2 z-40 bg-yellow-600/90 backdrop-blur-sm border border-yellow-500 rounded-lg px-4 py-2 shadow-xl">
+          <div className="flex items-center space-x-2">
+            <div className="h-2 w-2 bg-yellow-300 rounded-full animate-pulse"></div>
+            <span className="text-sm font-medium text-white">Working in Offline Mode</span>
           </div>
         </div>
       )}

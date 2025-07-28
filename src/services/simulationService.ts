@@ -18,7 +18,7 @@ export interface SimulationEvent {
 
 export class SimulationService {
   private static instance: SimulationService;
-  private isSimulationMode = false;
+  private isSimulationMode = true; // Default to true for development
   private activeScenarios: Map<string, NodeJS.Timeout> = new Map();
   private eventCallbacks: Map<string, Function[]> = new Map();
 
