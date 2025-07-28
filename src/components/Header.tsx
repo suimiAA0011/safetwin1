@@ -1,5 +1,5 @@
 import React from 'react';
-import { Shield, AlertTriangle, FileText, Settings, Play, Pause, User } from 'lucide-react';
+import { Shield, AlertTriangle, FileText, Settings, Play, Pause, User, TestTube } from 'lucide-react';
 import { User as UserType } from '../types';
 
 interface HeaderProps {
@@ -9,6 +9,7 @@ interface HeaderProps {
   setSimulatorMode: (mode: boolean) => void;
   systemConfig: any;
   user: UserType;
+  onToggleSimulation?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({ 
@@ -17,7 +18,8 @@ export const Header: React.FC<HeaderProps> = ({
   simulatorMode, 
   setSimulatorMode,
   systemConfig,
-  user
+  user,
+  onToggleSimulation
 }) => {
   const navItems = [
     { id: 'dashboard', label: 'Digital Twin', icon: Shield },
@@ -79,6 +81,17 @@ export const Header: React.FC<HeaderProps> = ({
             {simulatorMode ? 'Training Mode' : 'Live Mode'}
           </span>
         </button>
+
+        {/* Test Scenarios Button */}
+        {simulatorMode && onToggleSimulation && (
+          <button
+            onClick={onToggleSimulation}
+            className="flex items-center space-x-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
+          >
+            <TestTube className="h-4 w-4" />
+            <span className="text-sm font-medium">Test Scenarios</span>
+          </button>
+        )}
 
         {/* System Status */}
         <div className="flex items-center space-x-2">

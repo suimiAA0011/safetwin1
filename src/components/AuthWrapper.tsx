@@ -76,12 +76,32 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
     setIsFirstTime(false);
   };
 
+  const handleGuestMode = () => {
+    setShowOnboarding(true);
+    setIsFirstTime(false); // Don't mark as first time for guest mode
+  };
   // Show onboarding for first-time users
   if (showOnboarding && isFirstTime) {
     return (
       <Onboarding 
         onComplete={handleOnboardingComplete}
         onSkip={handleOnboardingSkip}
+        isGuestMode={false}
+      />
+    );
+  }
+
+  // Show onboarding for guest mode
+  if (showOnboarding && !isFirstTime) {
+    return (
+      <Onboarding 
+        onComplete={(config) => {
+          // Apply guest preferences temporarily
+          sessionStorage.setItem('safetwin_guest_preferences', JSON.stringify(config));
+          setShowOnboarding(false);
+        }}
+        onSkip={() => setShowOnboarding(false)}
+        isGuestMode={true}
       />
     );
   }
@@ -114,10 +134,10 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
               </div>
               <div className="flex space-x-4">
                 <button
-                  onClick={() => setShowOnboarding(true)}
+                  onClick={handleGuestMode}
                   className="px-4 py-2 text-gray-700 hover:bg-gray-100 rounded-lg transition-colors"
                 >
-                  View Demo
+                  Guest Mode
                 </button>
                 <button
                   onClick={() => setAuthMode('login')}

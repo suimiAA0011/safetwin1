@@ -17,6 +17,7 @@ export class AuthService {
     lastName: string;
     role: string;
     airportId?: string;
+    preferences?: any;
   }): Promise<{ user: User | null; error: string | null }> {
     try {
       // Check if backend is available
@@ -37,7 +38,7 @@ export class AuthService {
       }
 
       // Create user profile
-      const defaultPreferences: UserPreferences = {
+      const userPreferences: UserPreferences = userData.preferences || {
         theme: 'dark',
         alertSettings: {
           voiceAlerts: true,
@@ -79,7 +80,7 @@ export class AuthService {
           last_name: userData.lastName,
           role: userData.role,
           airport_id: userData.airportId || 'default-airport-id',
-          preferences: defaultPreferences,
+          preferences: userPreferences,
           created_at: new Date().toISOString(),
           last_login: new Date().toISOString()
         })
@@ -97,7 +98,7 @@ export class AuthService {
         lastName: profileData.last_name,
         role: profileData.role,
         airportId: profileData.airport_id,
-        preferences: profileData.preferences,
+        preferences: userPreferences,
         createdAt: new Date(profileData.created_at),
         lastLogin: new Date(profileData.last_login)
       };

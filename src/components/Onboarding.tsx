@@ -5,9 +5,10 @@ import { User } from '../types';
 interface OnboardingProps {
   onComplete: (config: any) => void;
   onSkip: () => void;
+  isGuestMode?: boolean;
 }
 
-export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) => {
+export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip, isGuestMode = false }) => {
   const [currentStep, setCurrentStep] = useState(0);
   const [config, setConfig] = useState({
     airportName: '',
@@ -72,7 +73,12 @@ export const Onboarding: React.FC<OnboardingProps> = ({ onComplete, onSkip }) =>
       setCurrentStep(currentStep + 1);
     } else {
       // Mark onboarding as completed
-      localStorage.setItem('safetwin_onboarding_completed', 'true');
+      if (isGuestMode) {
+        // Store as temporary session preferences
+        sessionStorage.setItem('safetwin_guest_preferences', JSON.stringify(config));
+      } else {
+        localStorage.setItem('safetwin_onboarding_completed', 'true');
+      }
       onComplete(config);
     }
   };
