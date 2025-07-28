@@ -133,7 +133,7 @@ export const AuthLogin: React.FC<AuthLoginProps> = ({ onSuccess, onSwitchToRegis
 
         {/* Demo Credentials */}
         <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-          <p className="text-xs text-gray-600 mb-2">Demo Credentials:</p>
+          <p className="text-xs text-gray-600 mb-2">Demo Credentials (Works Offline):</p>
           <div className="text-xs text-gray-700 space-y-1">
             <div>Email: demo@safetwin.com</div>
             <div>Password: demo123</div>
@@ -146,6 +146,9 @@ export const AuthLogin: React.FC<AuthLoginProps> = ({ onSuccess, onSwitchToRegis
             >
               Use Demo Credentials
             </button>
+          </div>
+          <div className="mt-2 text-xs text-gray-500">
+            Note: Demo mode works without internet connection
           </div>
         </div>
       </div>

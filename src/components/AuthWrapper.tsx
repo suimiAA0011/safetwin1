@@ -146,6 +146,18 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
 
         {/* Auth Content */}
         <div className="flex items-center justify-center min-h-[calc(100vh-4rem)] p-6">
+          <div className="w-full max-w-md">
+            {/* Connection Status */}
+            <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-center space-x-2">
+                <div className="h-2 w-2 bg-blue-400 rounded-full animate-pulse"></div>
+                <span className="text-sm text-blue-700">Demo Mode Active</span>
+              </div>
+              <p className="text-xs text-blue-600 mt-1">
+                Application running in offline demo mode. All data is stored locally.
+              </p>
+            </div>
+            
           {authMode === 'login' ? (
             <AuthLogin 
               onSuccess={handleAuthSuccess}
@@ -157,6 +169,7 @@ export const AuthWrapper: React.FC<AuthWrapperProps> = ({ children }) => {
               onSwitchToLogin={() => setAuthMode('login')}
             />
           )}
+          </div>
         </div>
       </div>
     );

@@ -320,6 +320,15 @@ export const AuthRegister: React.FC<AuthRegisterProps> = ({ onSuccess, onSwitchT
             </button>
           </p>
         </div>
+
+        {/* Demo Mode Notice */}
+        <div className="mt-6 p-4 bg-blue-50 rounded-lg">
+          <p className="text-xs text-blue-700 mb-2">Demo Mode Available:</p>
+          <p className="text-xs text-blue-600">
+            This application works in demo mode without requiring a database connection. 
+            Your account will be stored locally for testing purposes.
+          </p>
+        </div>
       </div>
     </div>
   );

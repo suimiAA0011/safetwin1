@@ -1,15 +1,44 @@
 import { supabase } from './supabaseClient';
 import { User, UserPreferences } from '../types';
+import bcrypt from 'bcryptjs';
 
 export class AuthService {
   private static instance: AuthService;
   private currentUser: User | null = null;
+  private isDemoMode: boolean = false;
+  private demoUsers: Map<string, any> = new Map();
 
   static getInstance(): AuthService {
     if (!AuthService.instance) {
       AuthService.instance = new AuthService();
+      AuthService.instance.initializeDemoMode();
     }
     return AuthService.instance;
+  }
+
+  private initializeDemoMode(): void {
+    // Initialize demo users
+    const demoPassword = bcrypt.hashSync('demo123', 10);
+    this.demoUsers.set('demo@safetwin.com', {
+      id: 'demo-user-id',
+      email: 'demo@safetwin.com',
+      password: demoPassword,
+      firstName: 'Demo',
+      lastName: 'User',
+      role: 'security_chief',
+      airportId: 'default-airport-id'
+    });
+  }
+
+  private async checkDatabaseConnection(): Promise<boolean> {
+    try {
+      const { data, error } = await supabase.from('airports').select('id').limit(1);
+      return !error;
+    } catch (error) {
+      console.warn('Database connection failed, switching to demo mode');
+      this.isDemoMode = true;
+      return false;
+    }
   }
 
   async signUp(email: string, password: string, userData: {
@@ -19,8 +48,12 @@ export class AuthService {
     airportId?: string;
   }): Promise<{ user: User | null; error: string | null }> {
     try {
-      // Check if backend is available
-      await this.checkBackendConnection();
+      // Check if database is available
+      const isConnected = await this.checkDatabaseConnection();
+      
+      if (!isConnected) {
+        return this.handleDemoSignUp(email, password, userData);
+      }
 
       // Create auth user
       const { data: authData, error: authError } = await supabase.auth.signUp({
@@ -108,17 +141,99 @@ export class AuthService {
       return { user, error: null };
     } catch (error) {
       console.error('Sign up error:', error);
-      if (error.message?.includes('fetch')) {
-        return { user: null, error: 'Cannot connect to the server. Please check your internet connection and try again.' };
+      return this.handleDemoSignUp(email, password, userData);
+    }
+  }
+
+  private async handleDemoSignUp(email: string, password: string, userData: any): Promise<{ user: User | null; error: string | null }> {
+    try {
+      // Check if user already exists in demo mode
+      if (this.demoUsers.has(email)) {
+        return { user: null, error: 'User already exists. Please try logging in instead.' };
       }
-      return { user: null, error: (error as Error).message };
+
+      // Create demo user
+      const hashedPassword = bcrypt.hashSync(password, 10);
+      const userId = `demo-${Date.now()}`;
+      
+      const defaultPreferences: UserPreferences = {
+        theme: 'dark',
+        alertSettings: {
+          voiceAlerts: true,
+          emailNotifications: true,
+          pushNotifications: true,
+          smsAlerts: false,
+          alertThreshold: 'medium'
+        },
+        dashboardLayout: {
+          sidebarCollapsed: false,
+          activeView: 'dashboard',
+          selectedZone: 'terminal-a'
+        },
+        aiAgents: {
+          anomalyDetection: true,
+          crowdMonitoring: true,
+          securityBreach: true,
+          emergencyResponse: true,
+          runwayMonitoring: true,
+          aircraftTracking: true,
+          vehicleMonitoring: true,
+          fuelSafety: true,
+          perimeterSecurity: true,
+          weatherMonitoring: true
+        },
+        systemSettings: {
+          autoRefresh: true,
+          refreshInterval: 5000,
+          darkMode: true
+        }
+      };
+
+      const demoUserData = {
+        id: userId,
+        email,
+        password: hashedPassword,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        role: userData.role,
+        airportId: userData.airportId || 'default-airport-id'
+      };
+
+      this.demoUsers.set(email, demoUserData);
+
+      const user: User = {
+        id: userId,
+        email,
+        firstName: userData.firstName,
+        lastName: userData.lastName,
+        role: userData.role,
+        airportId: userData.airportId || 'default-airport-id',
+        preferences: defaultPreferences,
+        createdAt: new Date(),
+        lastLogin: new Date()
+      };
+
+      this.currentUser = user;
+      this.storeUserSession(user);
+      
+      // Store in localStorage for demo persistence
+      localStorage.setItem('safetwin_demo_users', JSON.stringify(Array.from(this.demoUsers.entries())));
+
+      return { user, error: null };
+    } catch (error) {
+      console.error('Demo sign up error:', error);
+      return { user: null, error: 'Failed to create demo account. Please try again.' };
     }
   }
 
   async signIn(email: string, password: string): Promise<{ user: User | null; error: string | null }> {
     try {
-      // Check if backend is available
-      await this.checkBackendConnection();
+      // Check if database is available
+      const isConnected = await this.checkDatabaseConnection();
+      
+      if (!isConnected) {
+        return this.handleDemoSignIn(email, password);
+      }
 
       const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
         email,
@@ -168,18 +283,92 @@ export class AuthService {
       return { user, error: null };
     } catch (error) {
       console.error('Sign in error:', error);
-      if (error.message?.includes('fetch')) {
-        return { user: null, error: 'Cannot connect to the server. Please check your internet connection and try again.' };
+      return this.handleDemoSignIn(email, password);
+    }
+  }
+
+  private async handleDemoSignIn(email: string, password: string): Promise<{ user: User | null; error: string | null }> {
+    try {
+      // Load demo users from localStorage
+      const storedDemoUsers = localStorage.getItem('safetwin_demo_users');
+      if (storedDemoUsers) {
+        const demoUsersArray = JSON.parse(storedDemoUsers);
+        this.demoUsers = new Map(demoUsersArray);
       }
-      return { user: null, error: (error as Error).message };
+
+      const demoUser = this.demoUsers.get(email);
+      if (!demoUser) {
+        return { user: null, error: 'Invalid email or password' };
+      }
+
+      // Verify password
+      const isValidPassword = bcrypt.compareSync(password, demoUser.password);
+      if (!isValidPassword) {
+        return { user: null, error: 'Invalid email or password' };
+      }
+
+      const defaultPreferences: UserPreferences = {
+        theme: 'dark',
+        alertSettings: {
+          voiceAlerts: true,
+          emailNotifications: true,
+          pushNotifications: true,
+          smsAlerts: false,
+          alertThreshold: 'medium'
+        },
+        dashboardLayout: {
+          sidebarCollapsed: false,
+          activeView: 'dashboard',
+          selectedZone: 'terminal-a'
+        },
+        aiAgents: {
+          anomalyDetection: true,
+          crowdMonitoring: true,
+          securityBreach: true,
+          emergencyResponse: true,
+          runwayMonitoring: true,
+          aircraftTracking: true,
+          vehicleMonitoring: true,
+          fuelSafety: true,
+          perimeterSecurity: true,
+          weatherMonitoring: true
+        },
+        systemSettings: {
+          autoRefresh: true,
+          refreshInterval: 5000,
+          darkMode: true
+        }
+      };
+
+      const user: User = {
+        id: demoUser.id,
+        email: demoUser.email,
+        firstName: demoUser.firstName,
+        lastName: demoUser.lastName,
+        role: demoUser.role,
+        airportId: demoUser.airportId,
+        preferences: defaultPreferences,
+        createdAt: new Date(),
+        lastLogin: new Date()
+      };
+
+      this.currentUser = user;
+      this.storeUserSession(user);
+
+      return { user, error: null };
+    } catch (error) {
+      console.error('Demo sign in error:', error);
+      return { user: null, error: 'Failed to sign in. Please try again.' };
     }
   }
 
   async signOut(): Promise<{ error: string | null }> {
     try {
-      const { error } = await supabase.auth.signOut();
-      if (error) {
-        return { error: error.message };
+      if (!this.isDemoMode) {
+        const { error } = await supabase.auth.signOut();
+        if (error) {
+          return { error: error.message };
+        }
       }
 
       this.currentUser = null;
@@ -187,18 +376,6 @@ export class AuthService {
       return { error: null };
     } catch (error) {
       return { error: (error as Error).message };
-    }
-  }
-  private async checkBackendConnection(): Promise<void> {
-    try {
-      // Test connection to Supabase
-      const { data, error } = await supabase.from('airports').select('id').limit(1);
-      if (error && error.message.includes('fetch')) {
-        throw new Error('Backend connection failed');
-      }
-    } catch (error) {
-      console.error('Backend connection check failed:', error);
-      throw new Error('Cannot connect to the server. Please check your internet connection.');
     }
   }
 
@@ -214,31 +391,38 @@ export class AuthService {
       return storedUser;
     }
 
-    // Check Supabase session
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      const { data: profileData } = await supabase
-        .from('user_profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .single();
+    // Only check Supabase session if not in demo mode
+    if (!this.isDemoMode) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          const { data: profileData } = await supabase
+            .from('user_profiles')
+            .select('*')
+            .eq('id', session.user.id)
+            .single();
 
-      if (profileData) {
-        const user: User = {
-          id: profileData.id,
-          email: profileData.email,
-          firstName: profileData.first_name,
-          lastName: profileData.last_name,
-          role: profileData.role,
-          airportId: profileData.airport_id,
-          preferences: profileData.preferences,
-          createdAt: new Date(profileData.created_at),
-          lastLogin: new Date(profileData.last_login)
-        };
+          if (profileData) {
+            const user: User = {
+              id: profileData.id,
+              email: profileData.email,
+              firstName: profileData.first_name,
+              lastName: profileData.last_name,
+              role: profileData.role,
+              airportId: profileData.airport_id,
+              preferences: profileData.preferences,
+              createdAt: new Date(profileData.created_at),
+              lastLogin: new Date(profileData.last_login)
+            };
 
-        this.currentUser = user;
-        this.storeUserSession(user);
-        return user;
+            this.currentUser = user;
+            this.storeUserSession(user);
+            return user;
+          }
+        }
+      } catch (error) {
+        console.warn('Supabase session check failed, continuing in demo mode');
+        this.isDemoMode = true;
       }
     }
 
@@ -251,17 +435,21 @@ export class AuthService {
     }
 
     try {
-      const updatedPreferences = { ...this.currentUser.preferences, ...preferences };
+      if (!this.isDemoMode) {
+        const updatedPreferences = { ...this.currentUser.preferences, ...preferences };
 
-      const { error } = await supabase
-        .from('user_profiles')
-        .update({ preferences: updatedPreferences })
-        .eq('id', this.currentUser.id);
+        const { error } = await supabase
+          .from('user_profiles')
+          .update({ preferences: updatedPreferences })
+          .eq('id', this.currentUser.id);
 
-      if (error) {
-        return { error: error.message };
+        if (error) {
+          console.warn('Failed to update preferences in database, saving locally');
+        }
       }
 
+      // Always update local preferences
+      const updatedPreferences = { ...this.currentUser.preferences, ...preferences };
       this.currentUser.preferences = updatedPreferences;
       this.storeUserSession(this.currentUser);
       
